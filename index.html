@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skyline — Premium Weather Forecast</title>
+  <meta name="description" content="Skyline is a premium, glassmorphic weather forecast app with live current conditions, hourly and 5-day forecasts, air quality, and more." />
+
+  <!-- Google Fonts: Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============ ANIMATED BACKGROUND LAYERS (weather-reactive) ============ -->
+  <div class="bg-stage" id="bgStage" aria-hidden="true">
+    <div class="bg-gradient"></div>
+    <div class="bg-layer bg-sun">
+      <div class="sun-orb"></div>
+    </div>
+    <div class="bg-layer bg-clouds">
+      <span class="cloud c1"></span>
+      <span class="cloud c2"></span>
+      <span class="cloud c3"></span>
+    </div>
+    <div class="bg-layer bg-rain" id="rainLayer"></div>
+    <div class="bg-layer bg-snow" id="snowLayer"></div>
+    <div class="bg-layer bg-storm">
+      <div class="lightning"></div>
+    </div>
+    <div class="bg-layer bg-fog"></div>
+    <div class="bg-layer bg-stars" id="starsLayer"></div>
+    <div class="bg-noise"></div>
+  </div>
+
+  <!-- ============ LOADING SCREEN ============ -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loader-orbit">
+      <div class="loader-core"><i class="fa-solid fa-cloud-sun"></i></div>
+      <span class="orbit-dot d1"></span>
+      <span class="orbit-dot d2"></span>
+      <span class="orbit-dot d3"></span>
+    </div>
+    <p class="loader-text">Reading the sky…</p>
+  </div>
+
+  <!-- ============ ERROR TOAST ============ -->
+  <div class="error-toast" id="errorToast" role="alert">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <span id="errorMessage">Something went wrong.</span>
+    <button class="error-close" id="errorClose" aria-label="Dismiss error"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="app-shell">
+
+    <!-- ============ HEADER ============ -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon"><i class="fa-solid fa-cloud-bolt"></i></span>
+        <span class="brand-name">Skyline</span>
+      </div>
+
+      <form class="search-bar" id="searchForm" role="search" autocomplete="off">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input
+          type="text"
+          id="searchInput"
+          class="search-input"
+          placeholder="Search city, e.g. Tokyo"
+          aria-label="Search for a city"
+        />
+        <button type="button" class="icon-btn mic-btn" id="voiceBtn" title="Voice search" aria-label="Voice search">
+          <i class="fa-solid fa-microphone"></i>
+        </button>
+        <button type="submit" class="primary-btn search-btn" id="searchBtn">Search</button>
+      </form>
+
+      <div class="header-actions">
+        <button class="icon-btn" id="locationBtn" title="Use current location" aria-label="Use current location">
+          <i class="fa-solid fa-location-crosshairs"></i>
+        </button>
+        <button class="icon-btn" id="unitToggle" title="Toggle °C / °F" aria-label="Toggle temperature unit">°C</button>
+        <button class="icon-btn" id="themeToggle" title="Toggle dark / light mode" aria-label="Toggle theme">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ============ SEARCH SUGGESTIONS / HISTORY ============ -->
+    <section class="chips-row" id="chipsRow" aria-label="Recent and favorite cities">
+      <div class="chips-group" id="recentChips"></div>
+      <div class="chips-group" id="favoriteChips"></div>
+    </section>
+
+    <main class="main-grid">
+
+      <!-- ============ CURRENT WEATHER CARD ============ -->
+      <section class="card current-card glass" id="currentCard" aria-label="Current weather">
+        <div class="current-top">
+          <div class="place-block">
+            <h1 class="city-name" id="cityName">—</h1>
+            <p class="place-meta" id="placeMeta">Search for a city to begin</p>
+            <p class="date-time" id="dateTime"></p>
+          </div>
+          <button class="fav-btn" id="favBtn" title="Save to favorites" aria-label="Save to favorites">
+            <i class="fa-regular fa-star"></i>
+          </button>
+        </div>
+
+        <div class="current-mid">
+          <div class="weather-icon-wrap" id="weatherIconWrap" aria-hidden="true">
+            <i class="fa-solid fa-cloud-sun weather-icon-glyph" id="weatherIconGlyph"></i>
+          </div>
+          <div class="temp-block">
+            <span class="temp-value" id="tempValue">—</span>
+            <div class="temp-side">
+              <span class="weather-desc" id="weatherDesc">No data</span>
+              <span class="feels-like" id="feelsLike">Feels like —</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="current-stats" id="currentStats">
+          <!-- populated dynamically -->
+        </div>
+      </section>
+
+      <!-- ============ TODAY'S HIGHLIGHTS ============ -->
+      <section class="card highlights-card glass" aria-label="Today's highlights">
+        <h2 class="card-title">Today's Highlights</h2>
+        <div class="highlights-grid" id="highlightsGrid"></div>
+      </section>
+
+      <!-- ============ HOURLY FORECAST ============ -->
+      <section class="card hourly-card glass" aria-label="Hourly forecast">
+        <h2 class="card-title">Hourly Forecast</h2>
+        <div class="hourly-scroll" id="hourlyScroll"></div>
+      </section>
+
+      <!-- ============ 5-DAY FORECAST ============ -->
+      <section class="card daily-card glass" aria-label="5 day forecast">
+        <h2 class="card-title">5-Day Forecast</h2>
+        <div class="daily-row" id="dailyRow"></div>
+      </section>
+
+      <!-- ============ WEEKLY TEMPERATURE CHART ============ -->
+      <section class="card chart-card glass" aria-label="Weekly temperature trend">
+        <h2 class="card-title">Temperature Trend</h2>
+        <canvas id="tempChart" height="160"></canvas>
+      </section>
+
+      <!-- ============ AIR QUALITY ============ -->
+      <section class="card aqi-card glass" aria-label="Air quality index">
+        <h2 class="card-title">Air Quality</h2>
+        <div class="aqi-display">
+          <div class="aqi-ring" id="aqiRing">
+            <span class="aqi-number" id="aqiNumber">—</span>
+          </div>
+          <div class="aqi-info">
+            <span class="aqi-label" id="aqiLabel">No data</span>
+            <p class="aqi-sub">Based on PM2.5, PM10, NO₂, O₃ and SO₂ concentration.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ WEATHER ALERTS ============ -->
+      <section class="card alerts-card glass" id="alertsCard" aria-label="Weather alerts" hidden>
+        <h2 class="card-title"><i class="fa-solid fa-triangle-exclamation"></i> Weather Alerts</h2>
+        <div id="alertsList"></div>
+      </section>
+
+      <!-- ============ SUN & MOON ============ -->
+      <section class="card sun-card glass" aria-label="Sunrise, sunset and moon phase">
+        <h2 class="card-title">Sun &amp; Moon</h2>
+        <div class="sun-arc-wrap">
+          <svg viewBox="0 0 200 100" class="sun-arc" aria-hidden="true">
+            <path d="M10,90 A90,90 0 0,1 190,90" class="arc-track" />
+            <circle id="sunDot" cx="10" cy="90" r="6" class="arc-dot" />
+          </svg>
+          <div class="sun-times">
+            <div><i class="fa-solid fa-sun"></i><span id="sunriseTime">—</span></div>
+            <div><i class="fa-solid fa-moon"></i><span id="sunsetTime">—</span></div>
+          </div>
+        </div>
+        <div class="moon-phase">
+          <span class="moon-icon" id="moonIcon"><i class="fa-solid fa-moon"></i></span>
+          <span id="moonPhaseLabel">—</span>
+        </div>
+      </section>
+
+      <!-- ============ TIPS & TRAVEL SUGGESTIONS ============ -->
+      <section class="card tips-card glass" aria-label="Weather tips and travel suggestions">
+        <h2 class="card-title">Tips &amp; Suggestions</h2>
+        <ul class="tips-list" id="tipsList"></ul>
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      <p>Skyline Weather · Data by OpenWeatherMap · Built with HTML, CSS &amp; vanilla JS</p>
+    </footer>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
